@@ -1,0 +1,88 @@
+@import "tailwindcss";
+
+:root {
+  --background: #f8fafc;
+  --foreground: #0f172a;
+
+  --color-primary-dark: #1B2A4A;
+  --color-primary-dark-hover: #152238;
+  --color-primary-medium: #243B6A;
+  --color-accent: #E8446A;
+  --color-accent-hover: #D13A5C;
+  --color-accent-light: #FDEEF2;
+  --color-accent-muted: #F0A0B5;
+  --bg-main: #F8F9FC;
+  --bg-card: #FFFFFF;
+  --bg-section-light: #EEF1F6;
+  --bg-section-alt: #E4E8F0;
+  --bg-footer-bar: #131F38;
+  --color-footer-bar-border: #0F1A2E;
+  --color-social-bg: #4A5B7A;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+
+  --color-primary-dark: var(--color-primary-dark);
+  --color-primary-dark-hover: var(--color-primary-dark-hover);
+  --color-primary-medium: var(--color-primary-medium);
+  --color-accent: var(--color-accent);
+  --color-accent-hover: var(--color-accent-hover);
+  --color-accent-light: var(--color-accent-light);
+  --color-accent-muted: var(--color-accent-muted);
+  --color-main: var(--bg-main);
+  --color-card: var(--bg-card);
+  --color-section-light: var(--bg-section-light);
+  --color-section-alt: var(--bg-section-alt);
+  --color-footer-bar: var(--bg-footer-bar);
+  --color-footer-bar-border: var(--color-footer-bar-border);
+  --color-social-bg: var(--color-social-bg);
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: Arial, Helvetica, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+img {
+  max-width: 100%;
+  display: block;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+.hide-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+button,
+[role="button"],
+a,
+input[type="submit"],
+input[type="button"],
+input[type="reset"] {
+  cursor: pointer;
+}
+
+@media (max-width: 1023px) {
+  body {
+    overflow-x: hidden;
+  }
+}
