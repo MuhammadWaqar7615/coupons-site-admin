@@ -35,7 +35,7 @@ export async function requireRole(allowedRoles) {
   const hasAccess = normalizedAllowed.includes(currentRole);
 
   if (!hasAccess) {
-    redirect("/dashboard");
+    redirect("/account/login?error=forbidden");
   }
 
   return user;
