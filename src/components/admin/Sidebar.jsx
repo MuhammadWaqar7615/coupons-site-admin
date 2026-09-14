@@ -5,6 +5,16 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { AUTH_TOKEN_STORAGE_KEY, LEGACY_AUTH_TOKEN_STORAGE_KEY } from '@/config/auth';
 
+const getPublicSiteUrl = () => {
+  if (process.env.NEXT_PUBLIC_SITE_URL) {
+    return process.env.NEXT_PUBLIC_SITE_URL.replace(/\/+$/, '');
+  }
+  if (typeof window !== 'undefined' && window.location.hostname === 'localhost') {
+    return 'http://localhost:3000';
+  }
+  return 'https://coupons-site.vercel.app';
+};
+
 const navItems = [
   { name: 'Dashboard', href: '/dashboard', icon: '⌂' },
   { name: 'SEO Dashboard', href: '/dashboard/seo/dashboard', icon: '◫' },
@@ -25,8 +35,8 @@ const navItems = [
   { name: 'Theme', href: '/dashboard/theme', icon: '◈' },
   { name: 'Email Templates', href: '/dashboard/email-templates', icon: '✉' },
   { name: 'Settings', href: '/dashboard/settings', icon: '⚙' },
-  { name: 'Public stores', href: '/negozi', icon: '⌂' },
-  { name: 'Public offers', href: '/offerte', icon: '◌' },
+  { name: 'Public stores', href: '/negozi', icon: '⌂', isExternal: true },
+  { name: 'Public offers', href: '/offerte', icon: '◌', isExternal: true },
 ];
 
 export default function Sidebar() {
@@ -34,6 +44,7 @@ export default function Sidebar() {
   const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const publicSiteUrl = getPublicSiteUrl();
 
   const handleLogout = async (e) => {
     if (e) e.preventDefault();
@@ -113,6 +124,27 @@ export default function Sidebar() {
         <nav className="flex-1 overflow-y-auto px-3 py-4">
           <ul className="space-y-1.5">
             {navItems.map((item) => {
+              if (item.isExternal) {
+                const externalHref = `${publicSiteUrl}${item.href}`;
+                return (
+                  <li key={item.name}>
+                    <a
+                      href={externalHref}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={() => setIsOpen(false)}
+                      className="group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-slate-600 transition hover:bg-slate-100 hover:text-slate-900"
+                    >
+                      <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 text-xs font-bold text-slate-600 group-hover:bg-slate-200">
+                        {item.icon}
+                      </span>
+                      <span className="flex-1 text-left">{item.name}</span>
+                      <span className="text-xs text-slate-400 group-hover:text-slate-600" title="Opens public site in new tab">↗</span>
+                    </a>
+                  </li>
+                );
+              }
+
               const isActive =
                 item.href === "/dashboard"
                   ? pathname === "/dashboard"
