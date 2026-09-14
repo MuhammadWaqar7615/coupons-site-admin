@@ -4,6 +4,7 @@ import Link from "next/link";
 import { backendFetch } from "@/lib/backendFetch";
 import StoreTable from "./StoreTable";
 import DashboardSearch from "./DashboardSearch";
+import LogoutButton from "@/components/admin/LogoutButton";
 
 export const metadata = {
   title: "Admin Dashboard | CodiceSconto",
@@ -62,14 +63,9 @@ export default async function DashboardPage({ searchParams }) {
             >
               Add Store
             </Link>
-            <form action="/api/auth/logout" method="POST" className="flex-1 md:flex-none">
-              <button
-                type="submit"
-                className="w-full px-4 py-2 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors shadow-sm text-center"
-              >
-                Logout
-              </button>
-            </form>
+            <div className="flex-1 md:flex-none">
+              <LogoutButton />
+            </div>
           </div>
         </div>
 

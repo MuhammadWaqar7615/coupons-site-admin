@@ -2,8 +2,8 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
-import { AUTH_TOKEN_STORAGE_KEY } from '@/config/auth';
+import { usePathname, useRouter } from 'next/navigation';
+import { AUTH_TOKEN_STORAGE_KEY, LEGACY_AUTH_TOKEN_STORAGE_KEY } from '@/config/auth';
 
 const navItems = [
   { name: 'Dashboard', href: '/dashboard', icon: '⌂' },
@@ -31,10 +31,24 @@ const navItems = [
 
 export default function Sidebar() {
   const pathname = usePathname();
+  const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
 
-  const handleLogout = () => {
-    window.localStorage.removeItem(AUTH_TOKEN_STORAGE_KEY);
+  const handleLogout = async (e) => {
+    if (e) e.preventDefault();
+    setIsLoggingOut(true);
+    try {
+      await fetch("/api/auth/logout", { method: "POST" });
+    } catch (err) {
+      console.error("Logout error", err);
+    } finally {
+      window.localStorage.removeItem(AUTH_TOKEN_STORAGE_KEY);
+      window.localStorage.removeItem(LEGACY_AUTH_TOKEN_STORAGE_KEY);
+      setIsLoggingOut(false);
+      router.push("/account/login");
+      router.refresh();
+    }
   };
 
   return (
@@ -131,13 +145,14 @@ export default function Sidebar() {
         </nav>
 
         <div className="border-t border-slate-200 p-4">
-          <form action="/api/auth/logout" method="POST" onSubmit={handleLogout}>
+          <form onSubmit={handleLogout}>
             <button
               type="submit"
-              className="flex w-full items-center justify-center gap-2 rounded-xl border border-red-200 bg-red-50 px-3 py-2.5 text-sm font-semibold text-red-700 transition hover:bg-red-100"
+              disabled={isLoggingOut}
+              className="flex w-full items-center justify-center gap-2 rounded-xl border border-red-200 bg-red-50 px-3 py-2.5 text-sm font-semibold text-red-700 transition hover:bg-red-100 disabled:opacity-60 cursor-pointer"
             >
               <span className="inline-flex h-6 w-6 items-center justify-center rounded-md bg-red-100 text-xs">↩</span>
-              Logout
+              {isLoggingOut ? "Logging out..." : "Logout"}
             </button>
           </form>
         </div>

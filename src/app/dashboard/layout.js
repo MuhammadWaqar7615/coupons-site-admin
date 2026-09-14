@@ -1,6 +1,10 @@
 import Sidebar from "@/components/admin/Sidebar";
+import { requireRole } from "@/lib/auth/auth";
+import { ROLES } from "@/lib/auth/roles";
 
-export default function DashboardLayout({ children }) {
+export default async function DashboardLayout({ children }) {
+  await requireRole([ROLES.ADMIN, ROLES.ADMINISTRATION]);
+
   return (
     <div className="min-h-screen bg-slate-100 text-slate-900 lg:flex">
       <Sidebar />
