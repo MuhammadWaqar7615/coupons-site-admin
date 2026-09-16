@@ -3,108 +3,95 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import Image from "next/image";
 
 const emptySlider = {
-  title: "",
-  description: "",
-  discount: "",
-  logo: "",
-  logoPublicId: "",
-  link: "#",
-  featured: false,
-  seoTitle: "",
-  seoDescription: "",
-  status: "enabled",
   image: "",
   imagePublicId: "",
+  imageStoragePath: "",
+  mobileImage: "",
+  mobileImagePublicId: "",
+  mobileImageStoragePath: "",
+  status: "enabled",
 };
+
+const getAspectRatio = (file) => new Promise((resolve, reject) => {
+  const image = new Image();
+  image.onload = () => resolve(image.width / image.height);
+  image.onerror = () => reject(new Error("Unable to read image dimensions."));
+  image.src = URL.createObjectURL(file);
+});
+
+async function validateImage(file, expectedRatio, label) {
+  if (!file.type.startsWith("image/")) throw new Error(`${label} must be an image file.`);
+  const ratio = await getAspectRatio(file);
+  if (Math.abs(ratio - expectedRatio) > 0.03) {
+    throw new Error(`${label} must use a ${expectedRatio === 16 / 9 ? "16:9" : "9:16"} aspect ratio.`);
+  }
+}
 
 export default function SliderForm({ slider }) {
   const router = useRouter();
   const isEditing = Boolean(slider?._id);
   const [formData, setFormData] = useState(slider ? { ...emptySlider, ...slider } : emptySlider);
-  const [preview, setPreview] = useState(slider?.image || emptySlider.image);
-  const [logoPreview, setLogoPreview] = useState(slider?.logo || emptySlider.logo);
-  const [imageFile, setImageFile] = useState(null);
-  const [logoFile, setLogoFile] = useState(null);
+  const [desktopPreview, setDesktopPreview] = useState(slider?.image || "");
+  const [mobilePreview, setMobilePreview] = useState(slider?.mobileImage || "");
+  const [desktopFile, setDesktopFile] = useState(null);
+  const [mobileFile, setMobileFile] = useState(null);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  const handleChange = (event) => {
-    const { name, value, type, checked } = event.target;
-    setFormData((current) => ({ ...current, [name]: type === "checkbox" ? checked : value }));
-  };
-
-  const handleFile = (event) => {
+  const handleFile = async (event, type) => {
     const file = event.target.files?.[0];
     if (!file) return;
-    if (!file.type.startsWith("image/")) {
-      setError("Please select a valid image file.");
-      return;
+    try {
+      await validateImage(file, type === "desktop" ? 16 / 9 : 9 / 16, type === "desktop" ? "Desktop image" : "Mobile image");
+      const preview = URL.createObjectURL(file);
+      if (type === "desktop") {
+        setDesktopFile(file);
+        setDesktopPreview(preview);
+      } else {
+        setMobileFile(file);
+        setMobilePreview(preview);
+      }
+      setError("");
+    } catch (fileError) {
+      event.target.value = "";
+      setError(fileError.message);
     }
-    setImageFile(file);
-    setPreview(URL.createObjectURL(file));
-    setError("");
   };
 
-  const handleLogoFile = (event) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-    if (!file.type.startsWith("image/")) {
-      setError("Please select a valid image file.");
-      return;
-    }
-    setLogoFile(file);
-    setLogoPreview(URL.createObjectURL(file));
-    setError("");
+  const uploadImage = async (file) => {
+    const imageFormData = new FormData();
+    imageFormData.append("file", file);
+    imageFormData.append("bucket", "coupon-banners");
+    const response = await fetch("/api/upload", { method: "POST", body: imageFormData });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.message || "Failed to upload slider image.");
+    return data;
   };
 
   const handleSubmit = async (event) => {
     event.preventDefault();
     setLoading(true);
     setError("");
-    
     try {
-      let finalFormData = { ...formData };
-      let isUploading = false;
-
-      // Upload banner image if a new file is selected
-      if (imageFile) {
-        if (!isUploading) setUploadingImage(true);
-        isUploading = true;
-        const imageFormData = new FormData();
-        imageFormData.append("file", imageFile);
-        imageFormData.append("bucket", "coupon-banners");
-
-        const uploadRes = await fetch("/api/upload", { method: "POST", body: imageFormData });
-        if (!uploadRes.ok) throw new Error("Failed to upload slider image");
-
-        const uploadData = await uploadRes.json();
-        finalFormData.image = uploadData.url;
-        finalFormData.imagePublicId = uploadData.public_id;
-        finalFormData.imageStoragePath = uploadData.storagePath;
+      if (!desktopFile && !formData.image) throw new Error("Desktop image is required.");
+      if (!mobileFile && !formData.mobileImage) throw new Error("Mobile image is required.");
+      const finalFormData = { ...formData };
+      if (desktopFile || mobileFile) setUploadingImage(true);
+      if (desktopFile) {
+        const data = await uploadImage(desktopFile);
+        finalFormData.image = data.url;
+        finalFormData.imagePublicId = data.public_id;
+        finalFormData.imageStoragePath = data.storagePath;
       }
-
-      // Upload logo if a new file is selected
-      if (logoFile) {
-        if (!isUploading) setUploadingImage(true);
-        isUploading = true;
-        const logoFormData = new FormData();
-        logoFormData.append("file", logoFile);
-        logoFormData.append("bucket", "store-images");
-
-        const uploadRes = await fetch("/api/upload", { method: "POST", body: logoFormData });
-        if (!uploadRes.ok) throw new Error("Failed to upload logo image");
-
-        const uploadData = await uploadRes.json();
-        finalFormData.logo = uploadData.url;
-        finalFormData.logoPublicId = uploadData.public_id;
-        finalFormData.logoStoragePath = uploadData.storagePath;
+      if (mobileFile) {
+        const data = await uploadImage(mobileFile);
+        finalFormData.mobileImage = data.url;
+        finalFormData.mobileImagePublicId = data.public_id;
+        finalFormData.mobileImageStoragePath = data.storagePath;
       }
-
-      if (isUploading) setUploadingImage(false);
 
       const response = await fetch(isEditing ? `/api/sliders/${slider._id}` : "/api/sliders", {
         method: isEditing ? "PUT" : "POST",
@@ -125,51 +112,25 @@ export default function SliderForm({ slider }) {
   return (
     <main className="min-h-screen bg-gray-50 px-4 py-10 sm:px-6 lg:px-8">
       <div className="mx-auto max-w-4xl">
-        <div className="mb-6 flex items-center justify-between gap-4"><h1 className="text-2xl font-bold text-gray-800">{isEditing ? "Edit Slider" : "Add Slider"}</h1><Link href="/dashboard/sliders" className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">Cancel</Link></div>
+        <div className="mb-6 flex items-center justify-between gap-4">
+          <h1 className="text-2xl font-bold text-gray-800">{isEditing ? "Edit Slider Images" : "Add Slider Images"}</h1>
+          <Link href="/dashboard/sliders" className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">Cancel</Link>
+        </div>
         <form onSubmit={handleSubmit} className="space-y-8 rounded-xl border border-gray-100 bg-white p-6 shadow-lg sm:p-8">
           {error && <div className="border-l-4 border-red-500 bg-red-50 p-4 text-sm text-red-700">{error}</div>}
-          
-          <div className="grid gap-6 md:grid-cols-2">
-            <div><label htmlFor="title" className="mb-1 block text-sm font-medium text-gray-700">Title *</label><input id="title" name="title" required value={formData.title} onChange={handleChange} className="w-full rounded-lg border border-gray-300 px-4 py-2 text-gray-900 outline-none focus:border-accent focus:ring-2 focus:ring-accent" /></div>
-            <div><label htmlFor="discount" className="mb-1 block text-sm font-medium text-gray-700">Discount</label><input id="discount" name="discount" value={formData.discount} onChange={handleChange} placeholder="245€ or 20%" className="w-full rounded-lg border border-gray-300 px-4 py-2 text-gray-900 outline-none focus:border-accent focus:ring-2 focus:ring-accent" /></div>
-          </div>
-          
-          <div><label htmlFor="description" className="mb-1 block text-sm font-medium text-gray-700">Description</label><textarea id="description" name="description" rows="4" value={formData.description} onChange={handleChange} className="w-full rounded-lg border border-gray-300 px-4 py-2 text-gray-900 outline-none focus:border-accent focus:ring-2 focus:ring-accent" /></div>
-          
-          <div className="grid gap-6 md:grid-cols-2">
-            <div>
-              <label htmlFor="logoFile" className="mb-1 block text-sm font-medium text-gray-700">Store Logo</label>
-              <input type="file" id="logoFile" accept="image/*" onChange={handleLogoFile} className="block w-full text-sm text-gray-900 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-accent file:text-white hover:file:bg-accent-hover" />
-              {logoPreview && (
-                <div className="mt-4 flex h-24 w-24 items-center justify-center overflow-hidden rounded-lg border border-gray-200 bg-gray-50 p-2">
-                  <img src={logoPreview} alt="Logo preview" className="max-h-full max-w-full object-contain" />
-                </div>
-              )}
-            </div>
-            <div><label htmlFor="link" className="mb-1 block text-sm font-medium text-gray-700">Link</label><input id="link" name="link" value={formData.link} onChange={handleChange} className="w-full rounded-lg border border-gray-300 px-4 py-2 text-gray-900 outline-none focus:border-accent focus:ring-2 focus:ring-accent" /></div>
-          </div>
-
-          <label className="flex items-center gap-3 text-sm text-gray-700"><input type="checkbox" name="featured" checked={formData.featured} onChange={handleChange} className="h-4 w-4 accent-accent" />Featured</label>
-          
-          <div className="grid gap-6 border-t border-gray-100 pt-6 md:grid-cols-2">
-            <div><label htmlFor="seoTitle" className="mb-1 block text-sm font-medium text-gray-700">SEO title</label><input id="seoTitle" name="seoTitle" value={formData.seoTitle} onChange={handleChange} className="w-full rounded-lg border border-gray-300 px-4 py-2 text-gray-900 outline-none focus:border-accent focus:ring-2 focus:ring-accent" /></div>
-            <div><label htmlFor="status" className="mb-1 block text-sm font-medium text-gray-700">Status</label><select id="status" name="status" value={formData.status} onChange={handleChange} className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-gray-900 outline-none focus:border-accent focus:ring-2 focus:ring-accent"><option value="enabled">Enabled</option><option value="disabled">Disabled</option></select></div>
-          </div>
-          
-          <div><label htmlFor="seoDescription" className="mb-1 block text-sm font-medium text-gray-700">SEO description</label><textarea id="seoDescription" name="seoDescription" rows="3" value={formData.seoDescription} onChange={handleChange} className="w-full rounded-lg border border-gray-300 px-4 py-2 text-gray-900 outline-none focus:border-accent focus:ring-2 focus:ring-accent" /></div>
-          
-          <section className="border-t border-gray-100 pt-6">
-            <label htmlFor="imageFile" className="mb-1 block text-sm font-medium text-gray-700">Slider Image *</label>
-            <input type="file" id="imageFile" accept="image/*" onChange={handleFile} className="block w-full text-sm text-gray-900 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-accent file:text-white hover:file:bg-accent-hover" />
-            <p className="mt-2 text-xs text-gray-500">Recommended size for slider banner.</p>
-            {preview && (
-              <div className="mt-4 flex h-40 w-full max-w-md items-center justify-center overflow-hidden rounded-lg border border-gray-200 bg-gray-50 p-2">
-                <img src={preview} alt="Slider preview" className="max-h-full max-w-full object-contain" />
-              </div>
-            )}
+          <p className="text-sm text-gray-600">Upload one high-quality desktop image in 16:9 and one mobile image in 9:16. Titles, descriptions, logos, and discounts are not used for sliders.</p>
+          <section>
+            <label htmlFor="desktopImage" className="mb-1 block text-sm font-medium text-gray-700">Desktop image (16:9) *</label>
+            <input type="file" id="desktopImage" accept="image/*" onChange={(event) => handleFile(event, "desktop")} className="block w-full text-sm text-gray-900 file:mr-4 file:rounded-full file:border-0 file:bg-accent file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white hover:file:bg-accent-hover" />
+            {desktopPreview && <div className="mt-4 aspect-video w-full overflow-hidden rounded-lg border border-gray-200 bg-gray-50"><img src={desktopPreview} alt="Desktop slider preview" className="h-full w-full object-contain" /></div>}
           </section>
-
-          <div className="flex justify-end border-t border-gray-100 pt-6"><button type="submit" disabled={loading} className="rounded-lg bg-accent px-6 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-accent-hover disabled:opacity-50">{loading ? (uploadingImage ? "Uploading Image..." : "Saving...") : "Save Slider"}</button></div>
+          <section className="border-t border-gray-100 pt-6">
+            <label htmlFor="mobileImage" className="mb-1 block text-sm font-medium text-gray-700">Mobile image (9:16) *</label>
+            <input type="file" id="mobileImage" accept="image/*" onChange={(event) => handleFile(event, "mobile")} className="block w-full text-sm text-gray-900 file:mr-4 file:rounded-full file:border-0 file:bg-accent file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white hover:file:bg-accent-hover" />
+            {mobilePreview && <div className="mt-4 flex h-72 w-40 items-center justify-center overflow-hidden rounded-lg border border-gray-200 bg-gray-50"><img src={mobilePreview} alt="Mobile slider preview" className="h-full w-full object-contain" /></div>}
+          </section>
+          <div className="border-t border-gray-100 pt-6"><label htmlFor="status" className="mb-1 block text-sm font-medium text-gray-700">Status</label><select id="status" name="status" value={formData.status} onChange={(event) => setFormData((current) => ({ ...current, status: event.target.value }))} className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-gray-900 outline-none focus:border-accent focus:ring-2 focus:ring-accent"><option value="enabled">Enabled</option><option value="disabled">Disabled</option></select></div>
+          <div className="flex justify-end border-t border-gray-100 pt-6"><button type="submit" disabled={loading} className="rounded-lg bg-accent px-6 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-accent-hover disabled:opacity-50">{loading ? (uploadingImage ? "Uploading Images..." : "Saving...") : "Save Slider Images"}</button></div>
         </form>
       </div>
     </main>
