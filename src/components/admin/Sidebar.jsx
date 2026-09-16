@@ -27,6 +27,7 @@ const navItems = [
   { name: 'Categories', href: '/dashboard/categories', icon: '▣' },
   { name: 'Subcategories', href: '/dashboard/subcategories', icon: '▤' },
   { name: 'Sliders', href: '/dashboard/sliders', icon: '▨' },
+  { name: 'Main Banner', href: '/dashboard/main-banners', icon: '▤' },
   { name: 'Promo banners', href: '/dashboard/promo-banners', icon: '▣' },
   { name: 'Badges', href: '/dashboard/badges', icon: '★' },
   { name: 'Blog', href: '/dashboard/blog', icon: '✎' },
